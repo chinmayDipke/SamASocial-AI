@@ -31,8 +31,7 @@ async def embed_texts(texts: list[str]) -> np.ndarray:
         batch = texts[start : start + settings.embed_batch]
         try:
             response = await client.embeddings.create(model=settings.llm_embed_model, input=batch)
-            # The API preserves input order, but `index` is authoritative -- sort by it.
-            vectors.extend(item.embedding for item in sorted(response.data, key=lambda d: d.index))
+            vectors.extend(_ordered_embeddings(response.data, len(batch)))
         except openai.BadRequestError:
             # Not every provider accepts a list of inputs (Gemini's compatibility
             # layer takes one at a time). Fall back rather than failing the source.
@@ -43,6 +42,29 @@ async def embed_texts(texts: list[str]) -> np.ndarray:
 
     matrix = np.asarray(vectors, dtype=np.float32)
     return _normalise_rows(matrix)
+
+
+def _ordered_embeddings(data: list, expected: int) -> list[list[float]]:
+    """Return one embedding per input, in input order.
+
+    OpenAI populates `index` on each item; Gemini's compatibility layer leaves it
+    null and relies on response order. Sort when the field is usable, trust the
+    order when it is not -- and refuse a response with the wrong number of rows,
+    because a silent misalignment would attach every chunk to the wrong vector
+    and quietly poison retrieval.
+    """
+    if len(data) != expected:
+        raise EmbeddingMisaligned(
+            f"The embedding provider returned {len(data)} vectors for {expected} inputs."
+        )
+
+    if all(getattr(item, "index", None) is not None for item in data):
+        data = sorted(data, key=lambda item: item.index)
+    return [item.embedding for item in data]
+
+
+class EmbeddingMisaligned(RuntimeError):
+    """Raised when a provider returns a different number of vectors than inputs."""
 
 
 def _normalise_rows(matrix: np.ndarray) -> np.ndarray:

@@ -6,6 +6,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from ..llm.errors import describe_llm_error
 from ..llm.quiz import QuizUnavailable, generate_quiz
 from ..schemas import QuizResponse
 from .deps import SessionDep
@@ -25,8 +26,12 @@ async def create_quiz(
     except QuizUnavailable as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("Quiz generation failed: %s", exc)
+        api_message = describe_llm_error(exc)
+        if api_message:
+            logger.error("Quiz generation failed: %s", api_message)
+        else:
+            logger.exception("Quiz generation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="The quiz could not be generated right now. Please try again.",
+            detail=api_message or "The quiz could not be generated right now. Please try again.",
         ) from exc

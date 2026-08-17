@@ -66,6 +66,9 @@ class Session:
     messages: list[ChatMessage] = field(default_factory=list)
     # Serialises index mutations so two concurrent uploads cannot interleave.
     index_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    # Derived out-of-scope baseline, recomputed whenever the corpus changes.
+    scope_baseline: float | None = None
+    scope_baseline_chunks: int = 0
 
     @property
     def ready_sources(self) -> list[Source]:
@@ -83,6 +86,8 @@ class Session:
         for chunk in chunks:
             self.chunks[chunk.id] = chunk
             self.bm25.add(chunk.id, chunk.text)
+        # The corpus changed, so the derived scope baseline is stale.
+        self.scope_baseline = None
 
     def recent_messages(self, limit: int) -> list[ChatMessage]:
         return self.messages[-limit:]

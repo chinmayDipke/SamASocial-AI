@@ -8,6 +8,8 @@ configured provider, since the fix lives in a different console for each.
 
 from __future__ import annotations
 
+import re
+
 import openai
 
 from ..config import get_settings
@@ -28,11 +30,17 @@ def describe_llm_error(exc: Exception) -> str | None:
     name = PROVIDER_NAMES.get(provider, "The LLM provider")
 
     if isinstance(exc, openai.RateLimitError):
+        wait = _retry_after(exc)
+        soon = f" Try again in about {wait} seconds." if wait else ""
         if _is_quota_exhausted(exc):
             console = BILLING_URLS.get(provider)
             where = f" Check your quota at {console}." if console else ""
-            return f"The {name} account has no remaining quota, so this could not be processed.{where}"
-        return f"{name} is rate limiting requests right now. Wait a few seconds and try again."
+            # Providers use the same error for "out of credit" and "hit today's free
+            # allowance", so mention the wait when they tell us there is one.
+            return (
+                f"The {name} quota is used up, so this could not be processed.{soon}{where}"
+            )
+        return f"{name} is rate limiting requests right now.{soon or ' Wait a few seconds and try again.'}"
 
     if isinstance(exc, openai.AuthenticationError):
         return (
@@ -65,6 +73,19 @@ def describe_llm_error(exc: Exception) -> str | None:
 
 # Kept under the previous name so existing call sites stay valid.
 describe_openai_error = describe_llm_error
+
+
+def _retry_after(exc: openai.RateLimitError) -> int | None:
+    """Pull a retry delay out of the response, whichever way the provider states it."""
+    header = getattr(getattr(exc, "response", None), "headers", None)
+    if header:
+        raw = header.get("retry-after")
+        if raw and str(raw).strip().isdigit():
+            return int(str(raw).strip())
+
+    # Gemini puts it in the message body: "Please retry in 23.169578455s."
+    match = re.search(r"retry in (\d+(?:\.\d+)?)s", str(exc))
+    return round(float(match.group(1))) if match else None
 
 
 def _is_quota_exhausted(exc: openai.RateLimitError) -> bool:

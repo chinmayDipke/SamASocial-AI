@@ -25,7 +25,8 @@ export type Inline =
 export type Block =
   | { kind: "paragraph"; inlines: Inline[] }
   | { kind: "heading"; inlines: Inline[] }
-  | { kind: "list"; ordered: boolean; items: Inline[][] };
+  | { kind: "list"; ordered: boolean; items: Inline[][] }
+  | { kind: "rule" };
 
 export interface ParsedAnswer {
   blocks: Block[];
@@ -39,6 +40,8 @@ const PARTIAL_MARKER_RE = /\[S?\d*\s*\|?[^\]\n]{0,80}$/;
 const UNORDERED_RE = /^\s*[-*•]\s+/;
 const ORDERED_RE = /^\s*\d+[.)]\s+/;
 const HEADING_RE = /^\s*#{1,4}\s+/;
+// A markdown horizontal rule: --- , *** or ___
+const RULE_RE = /^\s*([-*_])\1{2,}\s*$/;
 
 /** Assign one of five source inks from the source ref, so colours are stable. */
 export function inkFor(ref: string): 1 | 2 | 3 | 4 | 5 {
@@ -102,6 +105,13 @@ export function parseAnswer(
     if (!line.trim()) {
       flushParagraph();
       flushList();
+      continue;
+    }
+
+    if (RULE_RE.test(line)) {
+      flushParagraph();
+      flushList();
+      blocks.push({ kind: "rule" });
       continue;
     }
 

@@ -163,4 +163,26 @@ async def generate_quiz(session: Session, question_count: int = 5) -> list[QuizQ
     valid = [q for q in parsed.questions if 0 <= q.correct_index < len(q.options)]
     if not valid:
         raise QuizUnavailable("The quiz came back malformed. Please try again.")
-    return valid[:question_count]
+    return [_tidy_attribution(question) for question in valid[:question_count]]
+
+
+def _tidy_attribution(question: QuizQuestion) -> QuizQuestion:
+    """Split a whole citation label back into its ref and locator parts.
+
+    Models frequently answer with `source_ref: "[S1 | Introduction]"` and repeat the
+    same string in `locator`, which renders as "[S1 | Introduction | [S1 | Introduction]]".
+    Cheaper to normalise here than to keep pushing on the prompt.
+    """
+    ref = question.source_ref.strip().strip("[]").strip()
+    locator = question.locator.strip().strip("[]").strip()
+
+    if "|" in ref:
+        ref, _, tail = (part.strip() for part in ref.partition("|"))
+        # Only adopt the tail as the locator if the locator field was a duplicate.
+        if tail and (not locator or locator.strip("[]").strip().endswith(tail)):
+            locator = tail
+
+    if "|" in locator:
+        locator = locator.rpartition("|")[2].strip().strip("[]").strip()
+
+    return question.model_copy(update={"source_ref": ref, "locator": locator})

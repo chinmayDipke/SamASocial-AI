@@ -98,8 +98,8 @@ def main() -> int:
         urls = ["https://en.wikipedia.org/wiki/Retrieval-augmented_generation"]
         print("No sources given; defaulting to the RAG Wikipedia article.")
 
-    if not get_settings().openai_api_key:
-        print("! OPENAI_API_KEY is not set. Copy .env.example to .env and add your key.")
+    if not get_settings().llm_api_key:
+        print("! LLM_API_KEY is not set. Copy .env.example to .env and add your key.")
         return 1
 
     failures: list[str] = []

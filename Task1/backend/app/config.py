@@ -66,9 +66,13 @@ class Settings(BaseSettings):
     context_char_budget: int = 12_000
     max_chunks_per_source: int = 4
     rrf_k: int = 60
-    # Out-of-scope floor: if nothing clears these, decline without calling the LLM.
-    min_vector_score: float = 0.18
-    min_bm25_score: float = 0.05
+    # Out-of-scope floor. Derived per session rather than absolute: a question must
+    # beat what a deliberately unrelated question scores against the same corpus by
+    # this share of the remaining headroom. See retrieval/calibration.py.
+    scope_margin: float = 0.15
+    # Lexical escape hatch: this share of the question's content words appearing in
+    # the corpus counts as in-scope regardless of the vector score.
+    scope_term_coverage: float = 0.5
 
     # --- Sessions and limits ------------------------------------------------
     session_ttl_minutes: int = 120

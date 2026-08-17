@@ -90,6 +90,9 @@ function BlockView({
       <InlineView key={index} inline={part} active={openFootnote} onToggle={onToggle} />
     ));
 
+  if (block.kind === "rule") {
+    return <hr className="my-4 border-0 border-t border-paper-edge" />;
+  }
   if (block.kind === "heading") {
     return <p className="mt-3 mb-1 font-display text-[1.05rem] font-semibold">{inlines(block.inlines)}</p>;
   }
