@@ -23,11 +23,18 @@ Together all implement, so the provider is configuration rather than code. It sh
 ```env
 LLM_API_KEY=...            # https://aistudio.google.com/apikey
 LLM_BASE_URL=gemini
-LLM_CHAT_MODEL=gemini-2.5-flash
+LLM_CHAT_MODEL=gemini-3.6-flash
+LLM_CONDENSE_MODEL=gemini-3.5-flash-lite
 LLM_EMBED_MODEL=gemini-embedding-001
 ```
 
 For OpenAI instead, leave `LLM_BASE_URL` empty and use `gpt-5.5` / `text-embedding-3-small`.
+
+> **Gemini free-tier note.** Daily request limits are per model, and they differ a lot: the
+> newest flash model allowed only 20 requests/day on the key this was built with, which one
+> session exhausts. `gemini-3.6-flash` was the best-performing model with workable limits.
+> If answers start failing with a quota message, run `python scripts/check_models.py` — it
+> probes the endpoints for real and tells you which models the key can actually use.
 
 ### 1. Backend
 
