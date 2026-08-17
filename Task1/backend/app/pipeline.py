@@ -18,6 +18,7 @@ from .ingest.pdf import ingest_pdf
 from .ingest.pptx import ingest_pptx
 from .ingest.web import ingest_web
 from .ingest.youtube import ingest_youtube, is_youtube_url
+from .llm.client import MissingApiKey
 from .llm.summarize import summarise_source
 from .retrieval.embeddings import embed_texts
 from .schemas import SourceKind, SourceStatus
@@ -98,6 +99,11 @@ async def run_ingestion(
         source.status = SourceStatus.FAILED
         source.error = str(exc)
         logger.info("Ingestion rejected for source %s: %s", source.id, exc)
+    except MissingApiKey as exc:
+        # A configuration problem, not a bad source -- say exactly that.
+        source.status = SourceStatus.FAILED
+        source.error = str(exc)
+        logger.error("Cannot index source %s: %s", source.id, exc)
     except Exception as exc:
         source.status = SourceStatus.FAILED
         source.error = "Something went wrong while processing this source. Please try again."

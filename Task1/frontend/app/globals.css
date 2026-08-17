@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+/*
+  Design direction: a desk in a dim reading room.
+
+  The shell (rails, chrome, your own questions) is ink -- the room. The answers
+  land on paper, because an answer grounded in sources is a document, and it is
+  the thing you actually read. Each loaded source is assigned one of five ink
+  colours, and its citations carry that colour, so "which source said this" is
+  answerable at a glance rather than by reading labels.
+*/
+
+@theme {
+  /* Shell */
+  --color-ink-950: #0b1015;
+  --color-ink-900: #111a22;
+  --color-ink-850: #16202b;
+  --color-ink-800: #1b2734;
+  --color-ink-700: #24333f;
+  --color-line: #2a3a49;
+  --color-line-soft: #1f2c38;
+
+  /* Text on the shell */
+  --color-quiet: #7f909f;
+  --color-quieter: #5c6b78;
+  --color-bright: #e8eef4;
+
+  /* The reading surface */
+  --color-paper: #fbf9f5;
+  --color-paper-edge: #efeae0;
+  --color-prose: #1a212a;
+  --color-prose-soft: #4d5864;
+
+  /* Interaction */
+  --color-accent: #7c8cff;
+  --color-accent-ink: #3b48c9;
+
+  /* Per-source inks, cycled in load order */
+  --color-src-1: #6e7cff;
+  --color-src-2: #2aa39a;
+  --color-src-3: #d9902b;
+  --color-src-4: #e0669b;
+  --color-src-5: #a47bf0;
+
+  /* Status */
+  --color-ok: #3ddc97;
+  --color-warn: #ffb84d;
+  --color-bad: #ff6b6b;
+
+  --font-display: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-card: 10px;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-ink-950);
+  color: var(--color-bright);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  Three voices, kept strictly separate:
+  .label   — machine metadata you would verify: refs, locators, counts, states
+  .control — anything you click
+  .hint    — quiet guidance next to a control
+*/
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.control {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.hint {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/* Answers read as prose, so they get real measure and generous leading. */
+.prose-answer {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--color-prose);
+}
+
+.prose-answer p + p {
+  margin-top: 0.85em;
+}
+
+.prose-answer strong {
+  font-weight: 600;
+}
+
+.prose-answer ul,
+.prose-answer ol {
+  margin-top: 0.6em;
+  padding-left: 1.35em;
+  list-style: revert;
+}
+
+.prose-answer code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--color-paper-edge);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+/* Focus is always visible, on both surfaces. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+/* Thin scrollbars so the rails stay quiet. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 4px;
+}
+
+@keyframes caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+/* The caret is the only thing that moves while tokens arrive. */
+.caret {
+  display: inline-block;
+  width: 0.5ch;
+  margin-left: 0.1ch;
+  background: var(--color-accent-ink);
+  animation: caret-blink 1s steps(1, end) infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.28s ease-out both;
+}
+
+@keyframes settle {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* An accent bar fills as a source finishes indexing -- ink settling on the page. */
+.settle {
+  transform-origin: left;
+  animation: settle 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .caret {
+    animation: none;
+    opacity: 1;
+  }
+}

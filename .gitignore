@@ -30,3 +30,9 @@ uploads/
 Thumbs.db
 .idea/
 .vscode/
+
+# Playwright MCP scratch output
+.playwright-mcp/
+
+# The assignment brief itself is marked confidential - keep it out of the public repo
+Samasocial_AI_Assignment.pdf
