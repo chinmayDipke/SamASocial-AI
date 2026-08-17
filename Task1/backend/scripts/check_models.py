@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import get_settings
 from app.llm.client import MissingApiKey, get_openai_client
+from app.llm.errors import describe_openai_error
 
 
 async def main() -> int:
@@ -57,7 +58,16 @@ async def main() -> int:
         print("  Set the value in backend/.env to one of the models listed above.")
         return 1
 
-    print("\nConfiguration looks good.")
+    # Listing models costs nothing, so it passes even on an account with no credit.
+    # Spend one token to find out whether the key can actually be used.
+    print("\nProbing with one tiny embedding request…")
+    try:
+        await client.embeddings.create(model=settings.openai_embed_model, input="ping")
+    except Exception as exc:
+        print(f"! {describe_openai_error(exc) or exc}")
+        return 1
+
+    print("Configuration looks good — the key can list models and make requests.")
     return 0
 
 

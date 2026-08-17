@@ -37,7 +37,7 @@ export function SourceCard({ source }: { source: Source }) {
         </div>
 
         {source.error && (
-          <p className="mt-2.5 border-l-2 border-bad/60 pl-2.5 text-[12px] leading-[1.45] text-bad/90">
+          <p className="mt-2.5 border-l-2 border-bad/60 pl-2.5 text-[12px] leading-[1.45] break-words text-bad/90">
             {source.error}
           </p>
         )}

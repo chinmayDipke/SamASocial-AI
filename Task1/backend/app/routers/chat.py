@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 
 from ..llm.chat import stream_chat
 from ..llm.client import MissingApiKey
+from ..llm.errors import describe_openai_error
 from ..schemas import ChatRequest
 from ..sessions import Session
 from .deps import SessionDep
@@ -36,10 +37,17 @@ async def _event_source(session: Session, message: str) -> AsyncIterator[str]:
     except MissingApiKey as exc:
         yield sse_frame("error", {"detail": str(exc)})
     except Exception as exc:
-        logger.exception("Chat stream failed: %s", exc)
+        api_message = describe_openai_error(exc)
+        if api_message:
+            logger.error("Chat stream failed: %s", api_message)
+        else:
+            logger.exception("Chat stream failed: %s", exc)
         yield sse_frame(
             "error",
-            {"detail": "The assistant could not complete that answer. Please try again."},
+            {
+                "detail": api_message
+                or "The assistant could not complete that answer. Please try again."
+            },
         )
 
 
