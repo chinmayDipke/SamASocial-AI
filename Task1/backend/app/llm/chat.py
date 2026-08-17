@@ -1,0 +1,200 @@
+"""Answering a question: condense -> retrieve -> stream.
+
+The condense step is what makes follow-ups work. "Explain that more simply" has no
+retrievable content of its own; rewriting it against the conversation into a
+standalone query is the difference between finding the right chunks and finding none.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
+
+from ..config import get_settings
+from ..retrieval import hybrid
+from ..retrieval.embeddings import embed_texts
+from ..schemas import ChatMessage, Chunk, Citation, SourceKind
+from ..sessions import Session, Source
+from .client import get_openai_client
+from .prompts import (
+    ANSWER_SYSTEM_PROMPT,
+    CONDENSE_SYSTEM_PROMPT,
+    NO_SOURCES_REPLY,
+    OUT_OF_SCOPE_REPLY,
+    build_answer_input,
+    build_context_block,
+)
+
+# A stream event: (event name, JSON-serialisable payload).
+StreamEvent = tuple[str, dict]
+
+
+@dataclass(slots=True)
+class Retrieval:
+    query: str
+    citations: list[Citation] = field(default_factory=list)
+    context: str = ""
+    in_scope: bool = False
+    best_vector_score: float = 0.0
+    term_coverage: float = 0.0
+
+
+def citation_url(source: Source, chunk: Chunk) -> str | None:
+    """Deep link back into the original material where the format allows one."""
+    if source.kind is SourceKind.YOUTUBE and source.url:
+        return f"{source.url}&t={max(chunk.start_position - 2, 0)}s"
+    if source.kind is SourceKind.WEB:
+        return source.url
+    return None
+
+
+async def condense_query(session: Session, message: str) -> str:
+    """Rewrite a follow-up into a standalone query. Falls back to the raw message."""
+    history = session.recent_messages(get_settings().max_history_messages)
+    if not history:
+        return message
+
+    transcript = "\n".join(
+        f"{'Learner' if m.role == 'user' else 'Assistant'}: {m.content}" for m in history
+    )
+    try:
+        response = await get_openai_client().responses.create(
+            model=get_settings().condense_model,
+            instructions=CONDENSE_SYSTEM_PROMPT,
+            input=f"CONVERSATION\n{transcript}\n\nLATEST MESSAGE\n{message}",
+        )
+        rewritten = (response.output_text or "").strip()
+    except Exception:
+        return message
+
+    # Guard against a model that returns an explanation instead of a query.
+    if not rewritten or len(rewritten) > 400:
+        return message
+    return rewritten
+
+
+async def retrieve(session: Session, query: str) -> Retrieval:
+    """Hybrid search across every ready source in the session."""
+    settings = get_settings()
+    outcome = Retrieval(query=query)
+    if not session.chunks:
+        return outcome
+
+    query_matrix = await embed_texts([query])
+    vector_hits = session.vectors.search(query_matrix[0], limit=settings.retrieval_top_k * 3)
+    bm25_hits = session.bm25.search(query, limit=settings.retrieval_top_k * 3)
+
+    outcome.best_vector_score = max((score for _id, score in vector_hits), default=0.0)
+    outcome.term_coverage = session.bm25.query_term_coverage(query)
+    outcome.in_scope = (
+        outcome.best_vector_score >= settings.min_vector_score or outcome.term_coverage >= 0.5
+    )
+    if not outcome.in_scope:
+        return outcome
+
+    ranked = hybrid.fuse(session.chunks, bm25_hits, vector_hits, rrf_k=settings.rrf_k)
+    selected = hybrid.select_context(
+        ranked,
+        top_k=settings.retrieval_top_k,
+        char_budget=settings.context_char_budget,
+        max_per_source=settings.max_chunks_per_source,
+    )
+    if not selected:
+        outcome.in_scope = False
+        return outcome
+
+    for item in selected:
+        source = session.sources.get(item.chunk.source_id)
+        if source is None:
+            continue
+        outcome.citations.append(
+            Citation(
+                ref=source.ref,
+                source_id=source.id,
+                source_title=source.title,
+                source_kind=source.kind,
+                locator=item.chunk.locator,
+                quote=item.chunk.text,
+                url=citation_url(source, item.chunk),
+            )
+        )
+
+    outcome.context = build_context_block(outcome.citations)
+    return outcome
+
+
+def _loaded_topics(session: Session) -> str:
+    titles = [source.title for source in session.ready_sources]
+    if not titles:
+        return "nothing yet"
+    if len(titles) == 1:
+        return titles[0]
+    return f"{', '.join(titles[:-1])} and {titles[-1]}"
+
+
+async def stream_chat(session: Session, message: str) -> AsyncIterator[StreamEvent]:
+    """Yield SSE-shaped events for one turn, recording it in the session history."""
+    settings = get_settings()
+
+    if not session.ready_sources:
+        yield ("token", {"text": NO_SOURCES_REPLY})
+        yield ("citations", {"citations": []})
+        yield ("done", {})
+        return
+
+    yield ("status", {"stage": "retrieving"})
+    search_query = await condense_query(session, message)
+    retrieval = await retrieve(session, search_query)
+
+    if not retrieval.in_scope:
+        reply = OUT_OF_SCOPE_REPLY.format(topics=_loaded_topics(session))
+        session.messages.append(ChatMessage(role="user", content=message))
+        session.messages.append(ChatMessage(role="assistant", content=reply))
+        yield ("token", {"text": reply})
+        yield ("citations", {"citations": []})
+        yield ("done", {"out_of_scope": True})
+        return
+
+    yield (
+        "status",
+        {
+            "stage": "generating",
+            "chunks": len(retrieval.citations),
+            "query": retrieval.query,
+        },
+    )
+
+    history = [
+        {"role": m.role, "content": m.content}
+        for m in session.recent_messages(settings.max_history_messages)
+    ]
+    answer_input = build_answer_input(message, retrieval.context, history)
+
+    collected: list[str] = []
+    stream = await get_openai_client().responses.create(
+        model=settings.openai_chat_model,
+        instructions=ANSWER_SYSTEM_PROMPT,
+        input=answer_input,
+        stream=True,
+    )
+    async for event in stream:
+        event_type = getattr(event, "type", "")
+        if event_type == "response.output_text.delta":
+            delta = getattr(event, "delta", "") or ""
+            collected.append(delta)
+            yield ("token", {"text": delta})
+        elif event_type == "response.refusal.delta":
+            yield ("token", {"text": getattr(event, "delta", "") or ""})
+        elif event_type in ("response.failed", "error"):
+            detail = getattr(getattr(event, "response", None), "error", None) or "generation failed"
+            yield ("error", {"detail": str(detail)})
+            return
+
+    answer = "".join(collected).strip()
+    session.messages.append(ChatMessage(role="user", content=message))
+    session.messages.append(ChatMessage(role="assistant", content=answer))
+
+    # Only report citations the model actually referenced, so the chips match the text.
+    cited = [c for c in retrieval.citations if f"[{c.ref} | {c.locator}]" in answer]
+    yield ("citations", {"citations": [c.model_dump() for c in (cited or retrieval.citations)]})
+    yield ("done", {})
