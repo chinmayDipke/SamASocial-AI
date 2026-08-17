@@ -23,8 +23,10 @@ export function Answer({ turn }: { turn: AssistantTurn }) {
   return (
     <article className="rise overflow-hidden rounded-[10px] border border-paper-edge bg-paper shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
       <div className="px-5 pt-4 pb-1">
-        {turn.stage === "retrieving" && turn.text === "" ? (
-          <Searching />
+        {turn.streaming && turn.text === "" ? (
+          // Covers the gap between "retrieved" and the first token, which would
+          // otherwise render as an empty card.
+          <Working stage={turn.stage} />
         ) : (
           <div className="prose-answer">
             {blocks.map((block, index) => (
@@ -59,7 +61,7 @@ export function Answer({ turn }: { turn: AssistantTurn }) {
   );
 }
 
-function Searching() {
+function Working({ stage }: { stage: AssistantTurn["stage"] }) {
   return (
     <p className="label flex items-center gap-2 py-1 text-prose-soft">
       <span className="flex gap-1" aria-hidden>
@@ -71,7 +73,7 @@ function Searching() {
           />
         ))}
       </span>
-      searching your sources
+      {stage === "retrieving" ? "searching your sources" : "writing the answer"}
     </p>
   );
 }
