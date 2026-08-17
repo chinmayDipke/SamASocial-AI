@@ -45,9 +45,10 @@ async def health() -> dict[str, object]:
     """Liveness plus the configuration the frontend cares about."""
     return {
         "status": "ok",
-        "chat_model": settings.openai_chat_model,
-        "embed_model": settings.openai_embed_model,
-        "openai_key_configured": bool(settings.openai_api_key),
+        "chat_model": settings.llm_chat_model,
+        "embed_model": settings.llm_embed_model,
+        "provider": settings.provider_label,
+        "llm_key_configured": bool(settings.llm_api_key),
         "max_upload_mb": settings.max_upload_mb,
         "max_sources_per_session": settings.max_sources_per_session,
     }

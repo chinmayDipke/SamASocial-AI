@@ -43,10 +43,10 @@ export function useAssistant() {
     api
       .health()
       .then((health) => {
-        if (!health.openai_key_configured) {
+        if (!health.llm_key_configured) {
           setNotice({
             kind: "error",
-            text: "The backend has no OPENAI_API_KEY set, so sources cannot be indexed. Add it to backend/.env and restart the server.",
+            text: "The backend has no LLM_API_KEY set, so sources cannot be indexed. Add it to backend/.env and restart the server.",
           });
         }
       })

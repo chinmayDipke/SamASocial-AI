@@ -46,9 +46,10 @@ async function readDetail(response: Response): Promise<string> {
 
 export interface Health {
   status: string;
+  provider: string;
   chat_model: string;
   embed_model: string;
-  openai_key_configured: boolean;
+  llm_key_configured: boolean;
   max_upload_mb: number;
   max_sources_per_session: number;
 }

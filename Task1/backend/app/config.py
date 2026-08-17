@@ -1,8 +1,23 @@
-"""Application settings, loaded from the environment (never hardcoded)."""
+"""Application settings, loaded from the environment (never hardcoded).
+
+The LLM is addressed through the OpenAI **Chat Completions** wire format, which
+OpenAI, Google Gemini, Groq, Together and others all speak. Switching provider is
+therefore a matter of `LLM_BASE_URL` plus three model names -- no code change.
+The older `OPENAI_*` variable names are still accepted as aliases.
+"""
 
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Convenience presets so `LLM_BASE_URL=gemini` works instead of a long URL.
+BASE_URL_PRESETS = {
+    "openai": "",  # the SDK default
+    "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    "groq": "https://api.groq.com/openai/v1",
+    "together": "https://api.together.xyz/v1",
+}
 
 
 class Settings(BaseSettings):
@@ -13,13 +28,34 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- OpenAI -------------------------------------------------------------
-    openai_api_key: str = ""
-    openai_chat_model: str = "gpt-5.5"
-    # Cheap model for query condensation. Falls back to the chat model if unset.
-    openai_condense_model: str = ""
-    openai_embed_model: str = "text-embedding-3-small"
+    # --- LLM provider -------------------------------------------------------
+    llm_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "LLM_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"
+        ),
+    )
+    # A preset name from BASE_URL_PRESETS, or a full URL. Empty means OpenAI.
+    llm_base_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("LLM_BASE_URL", "OPENAI_BASE_URL"),
+    )
+    llm_chat_model: str = Field(
+        default="gpt-5.5",
+        validation_alias=AliasChoices("LLM_CHAT_MODEL", "OPENAI_CHAT_MODEL"),
+    )
+    # Cheap model for query condensation. Falls back to the chat model.
+    llm_condense_model: str = Field(
+        default="",
+        validation_alias=AliasChoices("LLM_CONDENSE_MODEL", "OPENAI_CONDENSE_MODEL"),
+    )
+    llm_embed_model: str = Field(
+        default="text-embedding-3-small",
+        validation_alias=AliasChoices("LLM_EMBED_MODEL", "OPENAI_EMBED_MODEL"),
+    )
     embed_batch_size: int = 96
+    # Some providers cap embedding inputs per request; 0 means "no extra limit".
+    embed_max_batch_items: int = 0
 
     # --- Chunking -----------------------------------------------------------
     chunk_target_chars: int = 1200
@@ -53,7 +89,31 @@ class Settings(BaseSettings):
 
     @property
     def condense_model(self) -> str:
-        return self.openai_condense_model or self.openai_chat_model
+        return self.llm_condense_model or self.llm_chat_model
+
+    @property
+    def resolved_base_url(self) -> str | None:
+        """Expand a preset name to a URL. None means the SDK's own default."""
+        preset = BASE_URL_PRESETS.get(self.llm_base_url.strip().lower())
+        url = preset if preset is not None else self.llm_base_url.strip()
+        return url or None
+
+    @property
+    def provider_label(self) -> str:
+        """Which provider the current base URL points at, for logs and health."""
+        url = self.resolved_base_url
+        if not url:
+            return "openai"
+        for name, preset in BASE_URL_PRESETS.items():
+            if preset and preset in url:
+                return name
+        return "custom"
+
+    @property
+    def embed_batch(self) -> int:
+        if self.embed_max_batch_items > 0:
+            return min(self.embed_batch_size, self.embed_max_batch_items)
+        return self.embed_batch_size
 
     @property
     def cors_origins(self) -> list[str]:

@@ -7,10 +7,15 @@ avoids native dependencies that have no Python 3.14 wheels.
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
+import openai
 
 from ..config import get_settings
 from ..llm.client import get_openai_client
+
+logger = logging.getLogger(__name__)
 
 
 async def embed_texts(texts: list[str]) -> np.ndarray:
@@ -22,12 +27,19 @@ async def embed_texts(texts: list[str]) -> np.ndarray:
     client = get_openai_client()
     vectors: list[list[float]] = []
 
-    for start in range(0, len(texts), settings.embed_batch_size):
-        batch = texts[start : start + settings.embed_batch_size]
-        response = await client.embeddings.create(model=settings.openai_embed_model, input=batch)
-        # The API preserves input order, but `index` is authoritative -- sort by it.
-        for item in sorted(response.data, key=lambda d: d.index):
-            vectors.append(item.embedding)
+    for start in range(0, len(texts), settings.embed_batch):
+        batch = texts[start : start + settings.embed_batch]
+        try:
+            response = await client.embeddings.create(model=settings.llm_embed_model, input=batch)
+            # The API preserves input order, but `index` is authoritative -- sort by it.
+            vectors.extend(item.embedding for item in sorted(response.data, key=lambda d: d.index))
+        except openai.BadRequestError:
+            # Not every provider accepts a list of inputs (Gemini's compatibility
+            # layer takes one at a time). Fall back rather than failing the source.
+            logger.info("Batched embeddings rejected; falling back to one request per chunk")
+            for text in batch:
+                single = await client.embeddings.create(model=settings.llm_embed_model, input=text)
+                vectors.append(single.data[0].embedding)
 
     matrix = np.asarray(vectors, dtype=np.float32)
     return _normalise_rows(matrix)

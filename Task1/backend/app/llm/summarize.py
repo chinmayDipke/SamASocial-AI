@@ -39,11 +39,13 @@ async def summarise_source(title: str, chunks: list[Chunk]) -> str | None:
         return None
 
     try:
-        response = await get_openai_client().responses.create(
-            model=get_settings().openai_chat_model,
-            instructions=SUMMARY_SYSTEM_PROMPT,
-            input=f'SOURCE TITLE: {title}\n\nEXCERPT\n\n{excerpt}',
+        response = await get_openai_client().chat.completions.create(
+            model=get_settings().llm_chat_model,
+            messages=[
+                {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+                {"role": "user", "content": f"SOURCE TITLE: {title}\n\nEXCERPT\n\n{excerpt}"},
+            ],
         )
-        return (response.output_text or "").strip() or None
+        return (response.choices[0].message.content or "").strip() or None
     except Exception:
         return None

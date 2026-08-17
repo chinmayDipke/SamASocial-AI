@@ -58,12 +58,14 @@ async def condense_query(session: Session, message: str) -> str:
         f"{'Learner' if m.role == 'user' else 'Assistant'}: {m.content}" for m in history
     )
     try:
-        response = await get_openai_client().responses.create(
+        response = await get_openai_client().chat.completions.create(
             model=get_settings().condense_model,
-            instructions=CONDENSE_SYSTEM_PROMPT,
-            input=f"CONVERSATION\n{transcript}\n\nLATEST MESSAGE\n{message}",
+            messages=[
+                {"role": "system", "content": CONDENSE_SYSTEM_PROMPT},
+                {"role": "user", "content": f"CONVERSATION\n{transcript}\n\nLATEST MESSAGE\n{message}"},
+            ],
         )
-        rewritten = (response.output_text or "").strip()
+        rewritten = (response.choices[0].message.content or "").strip()
     except Exception:
         return message
 
@@ -171,24 +173,22 @@ async def stream_chat(session: Session, message: str) -> AsyncIterator[StreamEve
     answer_input = build_answer_input(message, retrieval.context, history)
 
     collected: list[str] = []
-    stream = await get_openai_client().responses.create(
-        model=settings.openai_chat_model,
-        instructions=ANSWER_SYSTEM_PROMPT,
-        input=answer_input,
+    stream = await get_openai_client().chat.completions.create(
+        model=settings.llm_chat_model,
+        messages=[
+            {"role": "system", "content": ANSWER_SYSTEM_PROMPT},
+            {"role": "user", "content": answer_input},
+        ],
         stream=True,
     )
-    async for event in stream:
-        event_type = getattr(event, "type", "")
-        if event_type == "response.output_text.delta":
-            delta = getattr(event, "delta", "") or ""
-            collected.append(delta)
-            yield ("token", {"text": delta})
-        elif event_type == "response.refusal.delta":
-            yield ("token", {"text": getattr(event, "delta", "") or ""})
-        elif event_type in ("response.failed", "error"):
-            detail = getattr(getattr(event, "response", None), "error", None) or "generation failed"
-            yield ("error", {"detail": str(detail)})
-            return
+    async for chunk in stream:
+        if not chunk.choices:
+            continue  # Some providers emit usage-only chunks with no choices.
+        delta = chunk.choices[0].delta
+        text = getattr(delta, "content", None)
+        if text:
+            collected.append(text)
+            yield ("token", {"text": text})
 
     answer = "".join(collected).strip()
     session.messages.append(ChatMessage(role="user", content=message))

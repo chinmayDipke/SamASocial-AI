@@ -46,13 +46,13 @@ async def main() -> int:
 
     print("\nCurrently configured:")
     for label, configured in (
-        ("OPENAI_CHAT_MODEL", settings.openai_chat_model),
-        ("OPENAI_EMBED_MODEL", settings.openai_embed_model),
+        ("LLM_CHAT_MODEL", settings.llm_chat_model),
+        ("LLM_EMBED_MODEL", settings.llm_embed_model),
     ):
         mark = "ok " if configured in models else "MISSING"
         print(f"  [{mark}] {label} = {configured}")
 
-    missing = [m for m in (settings.openai_chat_model, settings.openai_embed_model) if m not in models]
+    missing = [m for m in (settings.llm_chat_model, settings.llm_embed_model) if m not in models]
     if missing:
         print(f"\n! Not available to this key: {', '.join(missing)}")
         print("  Set the value in backend/.env to one of the models listed above.")
@@ -62,7 +62,7 @@ async def main() -> int:
     # Spend one token to find out whether the key can actually be used.
     print("\nProbing with one tiny embedding request…")
     try:
-        await client.embeddings.create(model=settings.openai_embed_model, input="ping")
+        await client.embeddings.create(model=settings.llm_embed_model, input="ping")
     except Exception as exc:
         print(f"! {describe_openai_error(exc) or exc}")
         return 1

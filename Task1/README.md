@@ -14,7 +14,20 @@ Task1/
 
 ## Setup
 
-Two processes. You need **Python 3.11+**, **Node 20+**, and an **OpenAI API key**.
+Two processes. You need **Python 3.11+**, **Node 20+**, and an API key for one LLM provider.
+
+The app speaks the **OpenAI Chat Completions** wire format, which OpenAI, Google Gemini, Groq and
+Together all implement, so the provider is configuration rather than code. It ships configured for
+**Gemini** (free tier, and it covers both chat and embeddings from one key):
+
+```env
+LLM_API_KEY=...            # https://aistudio.google.com/apikey
+LLM_BASE_URL=gemini
+LLM_CHAT_MODEL=gemini-2.5-flash
+LLM_EMBED_MODEL=gemini-embedding-001
+```
+
+For OpenAI instead, leave `LLM_BASE_URL` empty and use `gpt-5.5` / `text-embedding-3-small`.
 
 ### 1. Backend
 
@@ -64,11 +77,13 @@ All backend settings are read from `backend/.env` (see `.env.example` for the fu
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | — | **Required.** Used for chat, embeddings and quiz generation. |
-| `OPENAI_CHAT_MODEL` | `gpt-5.5` | Answering, summaries and quizzes. Verify with `check_models.py`. |
-| `OPENAI_CONDENSE_MODEL` | falls back to chat model | Cheap model for rewriting follow-up questions. |
-| `OPENAI_EMBED_MODEL` | `text-embedding-3-small` | Dense retrieval vectors (1536-d). |
+| `LLM_API_KEY` | — | **Required.** Chat, embeddings and quizzes. `OPENAI_API_KEY` / `GEMINI_API_KEY` are accepted as aliases. |
+| `LLM_BASE_URL` | `gemini` | Preset (`openai`, `gemini`, `groq`, `together`) or a full base URL. Empty = OpenAI. |
+| `LLM_CHAT_MODEL` | `gemini-2.5-flash` | Answering, summaries and quizzes. Verify with `check_models.py`. |
+| `LLM_CONDENSE_MODEL` | falls back to chat model | Cheap model for rewriting follow-up questions. |
+| `LLM_EMBED_MODEL` | `gemini-embedding-001` | Dense retrieval vectors. |
 | `EMBED_BATCH_SIZE` | `96` | Chunks per embedding request. |
+| `EMBED_MAX_BATCH_ITEMS` | `0` | Lower cap for providers that limit items per request; `0` = no extra limit. |
 | `CHUNK_TARGET_CHARS` / `CHUNK_OVERLAP_CHARS` | `1200` / `200` | Chunk size and overlap. |
 | `RETRIEVAL_TOP_K` | `8` | Chunks sent to the model per question. |
 | `CONTEXT_CHAR_BUDGET` | `12000` | Hard cap on assembled context. |
@@ -154,6 +169,13 @@ machine was Python 3.14 and FAISS/PyTorch have no wheels for it.
 **Ingestion runs in the background.** Uploads return `202` immediately with a `processing` source, and
 the UI polls. A source becomes `ready` only once it is in *both* indexes, so a question can never hit
 a half-indexed source. Summaries fill in afterwards, since they should not delay the first question.
+
+**The provider is a setting, not a dependency.** Everything goes through the OpenAI Chat Completions
+format, so `LLM_BASE_URL` plus three model names moves the whole app between OpenAI, Gemini, Groq and
+Together with no code change. Two consequences worth noting: embedding calls fall back to
+one-request-per-chunk if a provider rejects batched input, and quiz generation degrades from
+`json_schema` to `json_object` when strict schemas are unsupported — validated with Pydantic either
+way, so a malformed quiz is rejected rather than displayed.
 
 **Errors are written for the reader.** Every ingestion failure raises `IngestError` with a message
 intended for the person who pasted the link — "this PDF is a scan, which needs OCR", "captions are
