@@ -26,3 +26,9 @@ Setup instructions, environment variables and architecture decisions live in
 Task1/     Multi-Source AI Learning Assistant (backend + frontend)
 Task2/     AI Course Planning Assistant
 ```
+
+## Documentation
+
+- [`Task1/README.md`](./Task1/README.md) — setup, env vars, architecture decisions
+- [`Task1/docs/RUNBOOK.md`](./Task1/docs/RUNBOOK.md) — step-by-step run guide, demo script, troubleshooting
+- [`Task1/docs/INTERVIEW.md`](./Task1/docs/INTERVIEW.md) — plain-English walkthrough of how and why it works
