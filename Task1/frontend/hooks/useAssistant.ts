@@ -24,6 +24,8 @@ export function useAssistant() {
   const [streaming, setStreaming] = useState(false);
   const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
+  // The model the backend is actually configured with, for display only.
+  const [model, setModel] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   // Guards against React's development double-mount creating two sessions.
@@ -43,6 +45,7 @@ export function useAssistant() {
     api
       .health()
       .then((health) => {
+        setModel(health.chat_model);
         if (!health.llm_key_configured) {
           setNotice({
             kind: "error",
@@ -195,6 +198,7 @@ export function useAssistant() {
     streaming,
     quiz,
     quizLoading,
+    model,
     addSource,
     ask,
     stop,

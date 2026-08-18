@@ -47,6 +47,33 @@
   --color-warn: #ffb84d;
   --color-bad: #ff6b6b;
 
+  /*
+    shadcn semantic tokens, mapped onto the palette above rather than shadcn's
+    defaults. This is what stops the shadcn primitives looking like a bolted-on
+    light-mode widget: `bg-card` is our panel, `text-muted-foreground` is our
+    quiet grey, `ring-border` is our hairline.
+  */
+  --color-background: var(--color-ink-950);
+  --color-foreground: var(--color-bright);
+  --color-card: var(--color-ink-900);
+  --color-card-foreground: var(--color-bright);
+  --color-popover: var(--color-ink-850);
+  --color-popover-foreground: var(--color-bright);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-ink-950);
+  --color-secondary: var(--color-ink-800);
+  --color-secondary-foreground: var(--color-bright);
+  --color-muted: var(--color-ink-850);
+  --color-muted-foreground: var(--color-quiet);
+  --color-accent-foreground: var(--color-ink-950);
+  --color-destructive: var(--color-bad);
+  --color-destructive-foreground: var(--color-ink-950);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line);
+  --color-ring: var(--color-accent);
+
+  --radius: 10px;
+
   --font-display: var(--font-newsreader), Georgia, "Times New Roman", serif;
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", monospace;

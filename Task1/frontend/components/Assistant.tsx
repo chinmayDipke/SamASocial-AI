@@ -82,7 +82,7 @@ export function Assistant() {
           <div className="min-h-0 flex-1 overflow-y-auto">
             <Conversation
               turns={assistant.turns}
-              hasSources={hasReadySource}
+              sourceTitles={assistant.readySources.map((source) => source.title)}
               onSuggestion={ask}
             />
           </div>
@@ -91,8 +91,10 @@ export function Assistant() {
             disabled={!hasReadySource || assistant.starting}
             streaming={assistant.streaming}
             placeholder={placeholder}
+            model={assistant.model}
             onSend={ask}
             onStop={assistant.stop}
+            onAttach={(file) => void assistant.addSource({ file })}
           />
         </main>
       </div>
