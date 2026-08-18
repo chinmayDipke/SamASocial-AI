@@ -1,0 +1,104 @@
+"""Dense retrieval over an in-memory NumPy matrix.
+
+No FAISS: a session holds at most a few thousand chunks, so a normalised
+`float32` matrix and one `matmul` is both faster end-to-end (no index build) and
+avoids native dependencies that have no Python 3.14 wheels.
+"""
+
+from __future__ import annotations
+
+import logging
+
+import numpy as np
+import openai
+
+from ..config import get_settings
+from ..llm.client import get_openai_client
+
+logger = logging.getLogger(__name__)
+
+
+async def embed_texts(texts: list[str]) -> np.ndarray:
+    """Embed texts in batches, returning an L2-normalised `(n, dim)` float32 matrix."""
+    if not texts:
+        return np.zeros((0, 0), dtype=np.float32)
+
+    settings = get_settings()
+    client = get_openai_client()
+    vectors: list[list[float]] = []
+
+    for start in range(0, len(texts), settings.embed_batch):
+        batch = texts[start : start + settings.embed_batch]
+        try:
+            response = await client.embeddings.create(model=settings.llm_embed_model, input=batch)
+            vectors.extend(_ordered_embeddings(response.data, len(batch)))
+        except openai.BadRequestError:
+            # Not every provider accepts a list of inputs (Gemini's compatibility
+            # layer takes one at a time). Fall back rather than failing the source.
+            logger.info("Batched embeddings rejected; falling back to one request per chunk")
+            for text in batch:
+                single = await client.embeddings.create(model=settings.llm_embed_model, input=text)
+                vectors.append(single.data[0].embedding)
+
+    matrix = np.asarray(vectors, dtype=np.float32)
+    return _normalise_rows(matrix)
+
+
+def _ordered_embeddings(data: list, expected: int) -> list[list[float]]:
+    """Return one embedding per input, in input order.
+
+    OpenAI populates `index` on each item; Gemini's compatibility layer leaves it
+    null and relies on response order. Sort when the field is usable, trust the
+    order when it is not -- and refuse a response with the wrong number of rows,
+    because a silent misalignment would attach every chunk to the wrong vector
+    and quietly poison retrieval.
+    """
+    if len(data) != expected:
+        raise EmbeddingMisaligned(
+            f"The embedding provider returned {len(data)} vectors for {expected} inputs."
+        )
+
+    if all(getattr(item, "index", None) is not None for item in data):
+        data = sorted(data, key=lambda item: item.index)
+    return [item.embedding for item in data]
+
+
+class EmbeddingMisaligned(RuntimeError):
+    """Raised when a provider returns a different number of vectors than inputs."""
+
+
+def _normalise_rows(matrix: np.ndarray) -> np.ndarray:
+    if matrix.size == 0:
+        return matrix
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    np.maximum(norms, 1e-12, out=norms)
+    return matrix / norms
+
+
+class VectorIndex:
+    """Append-only store of normalised chunk embeddings, keyed by chunk id."""
+
+    def __init__(self) -> None:
+        self._ids: list[str] = []
+        self._matrix: np.ndarray | None = None
+
+    def __len__(self) -> int:
+        return len(self._ids)
+
+    def add(self, chunk_ids: list[str], matrix: np.ndarray) -> None:
+        if not chunk_ids or matrix.size == 0:
+            return
+        if len(chunk_ids) != matrix.shape[0]:
+            raise ValueError("chunk id count does not match embedding row count")
+
+        self._ids.extend(chunk_ids)
+        self._matrix = matrix if self._matrix is None else np.vstack((self._matrix, matrix))
+
+    def search(self, query_vector: np.ndarray, limit: int = 10) -> list[tuple[str, float]]:
+        """Cosine similarity search. Both sides are normalised, so this is a dot product."""
+        if self._matrix is None or not self._ids:
+            return []
+
+        scores = self._matrix @ query_vector.astype(np.float32)
+        top = np.argsort(-scores)[:limit]
+        return [(self._ids[int(i)], float(scores[int(i)])) for i in top]
