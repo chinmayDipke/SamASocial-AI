@@ -118,8 +118,15 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName
 
 const SelectItem = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & {
+    /**
+     * Extra detail shown in the list but NOT in the closed trigger. Radix mirrors
+     * whatever sits inside `ItemText` into the trigger, so descriptions have to
+     * live outside it or the collapsed control renders every line.
+     */
+    detail?: React.ReactNode
+  }
+>(({ className, children, detail, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
@@ -135,6 +142,7 @@ const SelectItem = React.forwardRef<
     </span>
 
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    {detail}
   </SelectPrimitive.Item>
 ))
 SelectItem.displayName = SelectPrimitive.Item.displayName

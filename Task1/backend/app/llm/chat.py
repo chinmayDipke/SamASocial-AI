@@ -19,6 +19,7 @@ from ..retrieval.calibration import scope_threshold, unrelated_baseline
 from ..retrieval.embeddings import embed_texts
 from ..schemas import ChatMessage, Chunk, Citation, SourceKind
 from ..sessions import Session, Source
+from . import catalog
 from .client import get_openai_client
 from .errors import describe_llm_error
 from .prompts import (
@@ -160,9 +161,14 @@ def _loaded_topics(session: Session) -> str:
     return f"{', '.join(titles[:-1])} and {titles[-1]}"
 
 
-async def stream_chat(session: Session, message: str) -> AsyncIterator[StreamEvent]:
+async def stream_chat(
+    session: Session,
+    message: str,
+    requested_model: str | None = None,
+) -> AsyncIterator[StreamEvent]:
     """Yield SSE-shaped events for one turn, recording it in the session history."""
     settings = get_settings()
+    model = await catalog.resolve(requested_model)
 
     if not session.ready_sources:
         yield ("token", {"text": NO_SOURCES_REPLY})
@@ -189,6 +195,7 @@ async def stream_chat(session: Session, message: str) -> AsyncIterator[StreamEve
             "stage": "generating",
             "chunks": len(retrieval.citations),
             "query": retrieval.query,
+            "model": catalog.short_id(model),
         },
     )
 
@@ -211,8 +218,9 @@ async def stream_chat(session: Session, message: str) -> AsyncIterator[StreamEve
     # repeat what the reader has already seen.
     for attempt in range(2):
         try:
+            catalog.record_request(catalog.short_id(model))
             stream = await get_openai_client().chat.completions.create(
-                model=settings.llm_chat_model,
+                model=model,
                 messages=messages,
                 stream=True,
             )
@@ -228,6 +236,8 @@ async def stream_chat(session: Session, message: str) -> AsyncIterator[StreamEve
         # Any failure is reported to the caller as an error frame, never raised.
         except Exception as exc:
             failure = describe_llm_error(exc) or "The answer could not be completed."
+            if "quota" in failure.lower():
+                catalog.record_quota_hit(catalog.short_id(model), failure)
             retryable = isinstance(exc, openai.APIStatusError) and exc.status_code >= 500
             if collected or not retryable or attempt == 1:
                 logger.warning("Answer stream failed: %s", exc)

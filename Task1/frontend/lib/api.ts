@@ -1,4 +1,10 @@
-import type { QuizQuestion, SessionInfo, Source, StreamFrame } from "./types";
+import type {
+  ModelsResponse,
+  QuizQuestion,
+  SessionInfo,
+  Source,
+  StreamFrame,
+} from "./types";
 
 const BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 
@@ -57,6 +63,8 @@ export interface Health {
 export const api = {
   health: () => request<Health>("/api/health"),
 
+  listModels: () => request<ModelsResponse>("/api/models"),
+
   createSession: () => request<SessionInfo>("/api/sessions", { method: "POST" }),
 
   getSession: (sessionId: string) => request<SessionInfo>(`/api/sessions/${sessionId}`),
@@ -93,11 +101,12 @@ export async function* streamChat(
   sessionId: string,
   message: string,
   signal: AbortSignal,
+  model?: string | null,
 ): AsyncGenerator<StreamFrame> {
   const response = await fetch(`${BASE_URL}/api/sessions/${sessionId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(model ? { message, model } : { message }),
     signal,
   });
 
