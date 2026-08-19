@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpIcon, PaperclipIcon, SquareIcon } from "lucide-react";
+import { ArrowUpIcon, LinkIcon, PaperclipIcon, SquareIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,17 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ModelOption } from "@/lib/types";
 
 interface Props {
+  /** True until a session exists; the box is otherwise always typable. */
   disabled: boolean;
+  /** Whether any source is indexed, which decides what the hint says. */
+  hasSource: boolean;
   streaming: boolean;
   placeholder: string;
   model: string | null;
   models: ModelOption[];
   onModelChange: (id: string) => void;
   onSend: (message: string) => void;
+  onAddUrl: (url: string) => void;
   onStop: () => void;
   onAttach: (file: File) => void;
 }
@@ -24,12 +28,14 @@ const ACCEPTED = ".pdf,.pptx";
 
 export function Composer({
   disabled,
+  hasSource,
   streaming,
   placeholder,
   model,
   models,
   onModelChange,
   onSend,
+  onAddUrl,
   onStop,
   onAttach,
 }: Props) {
@@ -45,10 +51,14 @@ export function Composer({
     element.style.height = `${Math.min(element.scrollHeight, 168)}px`;
   }, [value]);
 
-  const send = () => {
-    const message = value.trim();
-    if (!message || disabled || streaming) return;
-    onSend(message);
+  const trimmed = value.trim();
+  const isLink = looksLikeUrl(trimmed);
+
+  const submit = () => {
+    if (!trimmed || disabled || streaming) return;
+    // One box, two jobs: a bare link loads a source, anything else is a question.
+    if (isLink) onAddUrl(trimmed);
+    else onSend(trimmed);
     setValue("");
   };
 
@@ -67,7 +77,7 @@ export function Composer({
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
-                send();
+                submit();
               }
             }}
             className="min-h-[56px] resize-none rounded-b-none border-none bg-transparent px-3.5 py-3 text-[14px] leading-[1.5] text-bright shadow-none placeholder:text-quieter focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -80,7 +90,7 @@ export function Composer({
                 type="button"
                 variant="ghost"
                 onClick={() => fileInput.current?.click()}
-                disabled={disabled && !streaming}
+                disabled={disabled}
                 title="Add a PDF or PowerPoint file"
                 className="h-7 gap-1.5 px-2 text-xs text-quiet"
               >
@@ -109,20 +119,28 @@ export function Composer({
             ) : (
               <Button
                 type="button"
-                onClick={send}
-                disabled={disabled || !value.trim()}
-                aria-label="Send question"
+                onClick={submit}
+                disabled={disabled || !trimmed}
+                aria-label={isLink ? "Add this source" : "Send question"}
                 className="h-7 gap-1.5 px-3 text-xs"
               >
-                Ask
-                <ArrowUpIcon aria-hidden className="size-3.5" />
+                {isLink ? "Add source" : "Ask"}
+                {isLink ? (
+                  <LinkIcon aria-hidden className="size-3.5" />
+                ) : (
+                  <ArrowUpIcon aria-hidden className="size-3.5" />
+                )}
               </Button>
             )}
           </div>
         </div>
 
         <p className="hint mt-2 text-quieter">
-          Enter to send · Shift+Enter for a new line
+          {isLink
+            ? "That looks like a link — Enter adds it as a source"
+            : hasSource
+              ? "Enter to send · Shift+Enter for a new line · paste a link to add a source"
+              : "Paste a YouTube or article link to add your first source"}
         </p>
       </div>
 
@@ -139,4 +157,12 @@ export function Composer({
       />
     </div>
   );
+}
+
+/** A single token that looks like a web address, rather than a question. */
+function looksLikeUrl(value: string): boolean {
+  if (/\s/.test(value)) return false;
+  if (/^https?:\/\//i.test(value)) return true;
+  // Bare hosts like "example.com/docs" count; "what is RAG?" does not.
+  return /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(value);
 }

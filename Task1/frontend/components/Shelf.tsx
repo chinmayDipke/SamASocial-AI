@@ -1,19 +1,16 @@
 "use client";
 
-import { AddSource } from "@/components/AddSource";
 import { SourceCard } from "@/components/SourceCard";
 import type { Source } from "@/lib/types";
 
 interface Props {
   sources: Source[];
   readyCount: number;
-  disabled: boolean;
   quizLoading: boolean;
-  onAdd: (input: { url?: string; file?: File }) => void;
   onQuiz: () => void;
 }
 
-export function Shelf({ sources, readyCount, disabled, quizLoading, onAdd, onQuiz }: Props) {
+export function Shelf({ sources, readyCount, quizLoading, onQuiz }: Props) {
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto p-4">
       <div className="flex items-baseline justify-between">
@@ -21,12 +18,10 @@ export function Shelf({ sources, readyCount, disabled, quizLoading, onAdd, onQui
         <span className="label text-quieter">{sources.length ? `${readyCount} ready` : "empty"}</span>
       </div>
 
-      <AddSource disabled={disabled} onAdd={onAdd} />
-
       {sources.length === 0 ? (
         <p className="hint mt-1 text-quieter">
-          Anything you add is the only thing the assistant may answer from. Load a lecture PDF and
-          the video of the same lecture, and it will draw on both.
+          Paste a link or attach a file in the box below. Anything you add is the only thing the
+          assistant may answer from.
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

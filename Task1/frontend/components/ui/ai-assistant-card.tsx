@@ -4,15 +4,10 @@ import {
   BookOpenIcon,
   ListChecksIcon,
   Loader2Icon,
-  PaperclipIcon,
   ScanTextIcon,
   SparklesIcon,
   WandSparklesIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -72,10 +67,9 @@ interface Props {
   /** True while any source is still being processed. */
   indexing: boolean;
   onAsk: (question: string) => void;
-  onAddSource: (input: { url?: string; file?: File }) => void;
 }
 
-export function AiAssistantCard({ sourceTitles, indexing, onAsk, onAddSource }: Props) {
+export function AiAssistantCard({ sourceTitles, indexing, onAsk }: Props) {
   const ready = sourceTitles.length > 0;
 
   return (
@@ -93,10 +87,6 @@ export function AiAssistantCard({ sourceTitles, indexing, onAsk, onAddSource }: 
               : "Add a PDF, a slide deck, a lecture video or a web page. The assistant answers only from what you load, and says so when your material does not cover something."}
           </p>
         </div>
-
-        {/* Sources can be added from here as well as the left rail, so the
-            middle of the screen is never a dead end. */}
-        <AddSourceInline onAddSource={onAddSource} />
 
         {indexing && !ready && (
           <p className="label flex items-center gap-2 text-warn/90">
@@ -142,70 +132,10 @@ export function AiAssistantCard({ sourceTitles, indexing, onAsk, onAddSource }: 
             </p>
           </>
         ) : (
-          <p className="label text-quieter">add a source to begin</p>
+          <p className="label text-quieter">paste a link below to begin</p>
         )}
       </CardContent>
     </Card>
-  );
-}
-
-function AddSourceInline({
-  onAddSource,
-}: {
-  onAddSource: (input: { url?: string; file?: File }) => void;
-}) {
-  const [url, setUrl] = useState("");
-  const fileInput = useRef<HTMLInputElement>(null);
-
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault();
-    const value = url.trim();
-    if (!value) return;
-    onAddSource({ url: value });
-    setUrl("");
-  };
-
-  return (
-    <div className="w-full">
-      <form onSubmit={submit} className="flex gap-2">
-        <input
-          type="text"
-          inputMode="url"
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          placeholder="Paste a YouTube or article link…"
-          aria-label="Add a source by link"
-          className="min-w-0 flex-1 rounded-md border border-line bg-ink-950 px-3 py-2 text-[13px] text-bright placeholder:text-quieter focus:border-accent/70 focus:outline-none"
-        />
-        <Button type="submit" disabled={!url.trim()} className="h-auto px-4 text-xs">
-          Add
-        </Button>
-      </form>
-
-      <div className="mt-2 flex items-center justify-center gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => fileInput.current?.click()}
-          className="h-7 gap-1.5 px-2 text-xs text-quiet"
-        >
-          <PaperclipIcon aria-hidden className="size-3.5" />
-          Choose a PDF or .pptx
-        </Button>
-      </div>
-
-      <input
-        ref={fileInput}
-        type="file"
-        accept=".pdf,.pptx"
-        multiple
-        hidden
-        onChange={(event) => {
-          for (const file of Array.from(event.target.files ?? [])) onAddSource({ file });
-          event.target.value = "";
-        }}
-      />
-    </div>
   );
 }
 
