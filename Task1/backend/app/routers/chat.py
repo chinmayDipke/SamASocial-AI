@@ -30,9 +30,11 @@ def sse_frame(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-async def _event_source(session: Session, message: str) -> AsyncIterator[str]:
+async def _event_source(
+    session: Session, message: str, model: str | None
+) -> AsyncIterator[str]:
     try:
-        async for event, payload in stream_chat(session, message):
+        async for event, payload in stream_chat(session, message, model):
             yield sse_frame(event, payload)
     except MissingApiKey as exc:
         yield sse_frame("error", {"detail": str(exc)})
@@ -54,7 +56,7 @@ async def _event_source(session: Session, message: str) -> AsyncIterator[str]:
 @router.post("/chat")
 async def chat(session: SessionDep, payload: ChatRequest) -> StreamingResponse:
     return StreamingResponse(
-        _event_source(session, payload.message.strip()),
+        _event_source(session, payload.message.strip(), payload.model),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

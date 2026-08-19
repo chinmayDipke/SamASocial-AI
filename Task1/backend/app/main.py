@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routers import chat, quiz, sessions, sources
+from .routers import chat, models, quiz, sessions, sources
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +38,7 @@ app.include_router(sessions.router)
 app.include_router(sources.router)
 app.include_router(chat.router)
 app.include_router(quiz.router)
+app.include_router(models.router)
 
 
 @app.get("/api/health", tags=["meta"])

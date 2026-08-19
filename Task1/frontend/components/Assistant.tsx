@@ -83,7 +83,9 @@ export function Assistant() {
             <Conversation
               turns={assistant.turns}
               sourceTitles={assistant.readySources.map((source) => source.title)}
+              indexing={indexing}
               onSuggestion={ask}
+              onAddSource={(input) => void assistant.addSource(input)}
             />
           </div>
 
@@ -92,6 +94,8 @@ export function Assistant() {
             streaming={assistant.streaming}
             placeholder={placeholder}
             model={assistant.model}
+            models={assistant.models}
+            onModelChange={assistant.chooseModel}
             onSend={ask}
             onStop={assistant.stop}
             onAttach={(file) => void assistant.addSource({ file })}

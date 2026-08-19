@@ -95,6 +95,8 @@ class AddUrlSourceRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
+    # Optional per-turn model override; ignored unless it is on the allowlist.
+    model: str | None = Field(default=None, max_length=120)
 
 
 class QuizQuestion(BaseModel):
@@ -112,3 +114,24 @@ class QuizResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+
+class ModelOptionOut(BaseModel):
+    """One selectable chat model, with what is known about its limits."""
+
+    id: str
+    label: str
+    note: str
+    recommended: bool
+    is_default: bool
+    documented_daily: int | None = None
+    requests_used: int = 0
+    limit_reached: bool = False
+    limit_message: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
+class ModelsResponse(BaseModel):
+    provider: str
+    default: str
+    models: list[ModelOptionOut]

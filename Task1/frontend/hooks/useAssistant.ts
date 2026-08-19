@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api, streamChat } from "@/lib/api";
-import type { QuizQuestion, Source, Turn } from "@/lib/types";
+import type { ModelOption, QuizQuestion, Source, Turn } from "@/lib/types";
 
 const SOURCE_POLL_MS = 1200;
+const MODEL_STORAGE_KEY = "study-assistant.model";
 
 export interface Notice {
   kind: "error" | "info";
@@ -24,7 +25,8 @@ export function useAssistant() {
   const [streaming, setStreaming] = useState(false);
   const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
-  // The model the backend is actually configured with, for display only.
+  const [models, setModels] = useState<ModelOption[]>([]);
+  // The chosen model. Null means "whatever the backend defaults to".
   const [model, setModel] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -41,11 +43,24 @@ export function useAssistant() {
       .catch((error: unknown) => setNotice({ kind: "error", text: describe(error) }))
       .finally(() => setStarting(false));
 
+    api
+      .listModels()
+      .then(({ models: available, default: fallback }) => {
+        setModels(available);
+        const remembered =
+          typeof window === "undefined" ? null : window.localStorage.getItem(MODEL_STORAGE_KEY);
+        const usable = remembered && available.some((option) => option.id === remembered);
+        setModel(usable ? remembered : fallback);
+      })
+      .catch(() => {
+        /* the picker simply stays empty; the backend default still answers */
+      });
+
     // Surface a missing API key up front rather than letting the first upload fail.
     api
       .health()
       .then((health) => {
-        setModel(health.chat_model);
+        setModel((current) => current ?? health.chat_model);
         if (!health.llm_key_configured) {
           setNotice({
             kind: "error",
@@ -123,10 +138,12 @@ export function useAssistant() {
       setStreaming(true);
 
       try {
-        for await (const frame of streamChat(sessionId, question, controller.signal)) {
+        for await (const frame of streamChat(sessionId, question, controller.signal, model)) {
           switch (frame.event) {
             case "status":
               patch({ stage: frame.data.stage });
+              // The backend reports which model it actually used.
+              if (frame.data.model) setModel(frame.data.model);
               break;
             case "token":
               setTurns((previous) =>
@@ -158,11 +175,15 @@ export function useAssistant() {
       } finally {
         abortRef.current = null;
         setStreaming(false);
-        // Message count and any late summaries are refreshed once the turn ends.
+        // Message count, late summaries and per-model usage all refresh here.
         api.listSources(sessionId).then(setSources).catch(() => {});
+        api
+          .listModels()
+          .then(({ models: available }) => setModels(available))
+          .catch(() => {});
       }
     },
-    [sessionId, streaming],
+    [sessionId, streaming, model],
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);
@@ -186,6 +207,12 @@ export function useAssistant() {
 
   const closeQuiz = useCallback(() => setQuiz(null), []);
 
+  const chooseModel = useCallback((next: string) => {
+    setModel(next);
+    // Remember the choice so a reload does not silently switch models.
+    if (typeof window !== "undefined") window.localStorage.setItem(MODEL_STORAGE_KEY, next);
+  }, []);
+
   const readySources = sources.filter((source) => source.status === "ready");
 
   return {
@@ -199,6 +226,8 @@ export function useAssistant() {
     quiz,
     quizLoading,
     model,
+    models,
+    chooseModel,
     addSource,
     ask,
     stop,

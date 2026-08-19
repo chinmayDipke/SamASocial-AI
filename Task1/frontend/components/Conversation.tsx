@@ -10,10 +10,18 @@ interface Props {
   turns: Turn[];
   /** Titles of indexed sources, shown in the welcome card. */
   sourceTitles: string[];
+  indexing: boolean;
   onSuggestion: (question: string) => void;
+  onAddSource: (input: { url?: string; file?: File }) => void;
 }
 
-export function Conversation({ turns, sourceTitles, onSuggestion }: Props) {
+export function Conversation({
+  turns,
+  sourceTitles,
+  indexing,
+  onSuggestion,
+  onAddSource,
+}: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const lastTurn = turns.at(-1);
   const streamingText = lastTurn?.role === "assistant" ? lastTurn.text : "";
@@ -26,7 +34,12 @@ export function Conversation({ turns, sourceTitles, onSuggestion }: Props) {
   if (turns.length === 0) {
     return (
       <div className="flex h-full items-center justify-center px-5 py-10">
-        <AiAssistantCard sourceTitles={sourceTitles} onAsk={onSuggestion} />
+        <AiAssistantCard
+          sourceTitles={sourceTitles}
+          indexing={indexing}
+          onAsk={onSuggestion}
+          onAddSource={onAddSource}
+        />
       </div>
     );
   }

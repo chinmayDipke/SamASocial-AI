@@ -134,6 +134,7 @@ question ──► POST /chat (SSE)
 | Mixed sources in one session | session-wide indexes, per-source context cap |
 | Per-answer source attribution *(bonus)* | footnote apparatus in `components/Answer.tsx` |
 | Quiz mode *(bonus)* | `app/llm/quiz.py`, `components/QuizPanel.tsx` |
+| Model picker with live quota usage | `app/llm/catalog.py`, `components/ui/model-picker.tsx` |
 | Per-source summary *(bonus)* | `app/llm/summarize.py`, shown on each source card |
 
 ---

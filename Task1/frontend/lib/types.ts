@@ -57,8 +57,35 @@ export type Turn =
 
 /** One frame of the chat SSE stream. */
 export type StreamFrame =
-  | { event: "status"; data: { stage: "retrieving" | "generating"; chunks?: number; query?: string } }
+  | {
+      event: "status";
+      data: {
+        stage: "retrieving" | "generating";
+        chunks?: number;
+        query?: string;
+        model?: string;
+      };
+    }
   | { event: "token"; data: { text: string } }
   | { event: "citations"; data: { citations: Citation[] } }
   | { event: "done"; data: { out_of_scope?: boolean } }
   | { event: "error"; data: { detail: string } };
+
+export interface ModelOption {
+  id: string;
+  label: string;
+  note: string;
+  recommended: boolean;
+  is_default: boolean;
+  documented_daily: number | null;
+  requests_used: number;
+  limit_reached: boolean;
+  limit_message: string | null;
+  tags: string[];
+}
+
+export interface ModelsResponse {
+  provider: string;
+  default: string;
+  models: ModelOption[];
+}
