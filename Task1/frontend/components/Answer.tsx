@@ -21,7 +21,7 @@ export function Answer({ turn }: { turn: AssistantTurn }) {
   const toggle = (number: number) => setOpenFootnote((current) => (current === number ? null : number));
 
   return (
-    <article className="rise overflow-hidden rounded-[10px] border border-paper-edge bg-paper shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
+    <article className="rise overflow-hidden rounded-[10px] border border-paper-edge bg-paper shadow-[0_1px_2px_rgba(0,0,0,0.25)]">
       <div className="px-5 pt-4 pb-1">
         {turn.streaming && turn.text === "" ? (
           // Covers the gap between "retrieved" and the first token, which would
@@ -42,7 +42,7 @@ export function Answer({ turn }: { turn: AssistantTurn }) {
         )}
 
         {turn.error && (
-          <p className="mt-3 rounded-md bg-bad/10 px-3 py-2 text-[13px] text-[#8f2020]">
+          <p className="mt-3 rounded-md bg-bad/10 px-3 py-2 text-[13px] text-bad">
             {turn.error}
           </p>
         )}

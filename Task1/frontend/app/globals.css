@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 /*
-  Design direction: a desk in a dim reading room.
+  Design direction: a dim reading room.
 
-  The shell (rails, chrome, your own questions) is ink -- the room. The answers
-  land on paper, because an answer grounded in sources is a document, and it is
-  the thing you actually read. Each loaded source is assigned one of five ink
-  colours, and its citations carry that colour, so "which source said this" is
-  answerable at a glance rather than by reading labels.
+  One dark family throughout. An answer grounded in sources is a document, so it
+  is raised a step above the shell and set in serif -- the thing you actually
+  read -- rather than being flipped to a light sheet, which fought the rest of
+  the UI. Each loaded source is assigned one of five ink colours, and its
+  citations carry that colour, so "which source said this" is answerable at a
+  glance rather than by reading labels.
 */
 
 @theme {
@@ -25,11 +26,11 @@
   --color-quieter: #5c6b78;
   --color-bright: #e8eef4;
 
-  /* The reading surface */
-  --color-paper: #fbf9f5;
-  --color-paper-edge: #efeae0;
-  --color-prose: #1a212a;
-  --color-prose-soft: #4d5864;
+  /* The reading surface: a raised panel in the same family as the shell. */
+  --color-paper: #18242f;
+  --color-paper-edge: #26374a;
+  --color-prose: #e8eef4;
+  --color-prose-soft: #93a3b1;
 
   /* Interaction */
   --color-accent: #7c8cff;
@@ -193,7 +194,7 @@ body {
   display: inline-block;
   width: 0.5ch;
   margin-left: 0.1ch;
-  background: var(--color-accent-ink);
+  background: var(--color-accent);
   animation: caret-blink 1s steps(1, end) infinite;
 }
 
