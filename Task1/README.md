@@ -135,6 +135,8 @@ question ──► POST /chat (SSE)
 | Per-answer source attribution *(bonus)* | footnote apparatus in `components/Answer.tsx` |
 | Quiz mode *(bonus)* | `app/llm/quiz.py`, `components/QuizPanel.tsx` |
 | Model picker with live quota usage | `app/llm/catalog.py`, `components/ui/model-picker.tsx` |
+| One box for questions, links and files | `components/Composer.tsx` (a bare URL becomes a source) |
+| Session chat history as a jump list | `ChatHistory` in `components/Shelf.tsx` |
 | Per-source summary *(bonus)* | `app/llm/summarize.py`, shown on each source card |
 
 ---
