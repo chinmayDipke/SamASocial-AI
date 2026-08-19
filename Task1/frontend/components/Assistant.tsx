@@ -16,10 +16,10 @@ export function Assistant() {
   const indexing = assistant.sources.some((source) => source.status === "processing");
 
   const placeholder = hasReadySource
-    ? "Ask about your material"
+    ? "Ask about your material, or paste a link to add another source"
     : indexing
       ? "Reading your source…"
-      : "Add a source to start asking";
+      : "Paste a YouTube or article link, or attach a PDF";
 
   const ask = (message: string) => {
     setShelfOpen(false);
@@ -71,9 +71,7 @@ export function Assistant() {
           <Shelf
             sources={assistant.sources}
             readyCount={assistant.readySources.length}
-            disabled={assistant.starting || !assistant.sessionId}
             quizLoading={assistant.quizLoading}
-            onAdd={(input) => void assistant.addSource(input)}
             onQuiz={() => void assistant.startQuiz()}
           />
         </aside>
@@ -85,18 +83,19 @@ export function Assistant() {
               sourceTitles={assistant.readySources.map((source) => source.title)}
               indexing={indexing}
               onSuggestion={ask}
-              onAddSource={(input) => void assistant.addSource(input)}
             />
           </div>
 
           <Composer
-            disabled={!hasReadySource || assistant.starting}
+            disabled={assistant.starting || !assistant.sessionId}
+            hasSource={hasReadySource}
             streaming={assistant.streaming}
             placeholder={placeholder}
             model={assistant.model}
             models={assistant.models}
             onModelChange={assistant.chooseModel}
             onSend={ask}
+            onAddUrl={(url) => void assistant.addSource({ url })}
             onStop={assistant.stop}
             onAttach={(file) => void assistant.addSource({ file })}
           />

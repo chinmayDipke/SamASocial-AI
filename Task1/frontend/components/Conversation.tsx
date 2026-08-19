@@ -12,7 +12,6 @@ interface Props {
   sourceTitles: string[];
   indexing: boolean;
   onSuggestion: (question: string) => void;
-  onAddSource: (input: { url?: string; file?: File }) => void;
 }
 
 export function Conversation({
@@ -20,7 +19,6 @@ export function Conversation({
   sourceTitles,
   indexing,
   onSuggestion,
-  onAddSource,
 }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
   const lastTurn = turns.at(-1);
@@ -38,7 +36,6 @@ export function Conversation({
           sourceTitles={sourceTitles}
           indexing={indexing}
           onAsk={onSuggestion}
-          onAddSource={onAddSource}
         />
       </div>
     );
