@@ -21,6 +21,11 @@ export function Assistant() {
       ? "Reading your source…"
       : "Paste a YouTube or article link, or attach a PDF";
 
+  const jumpToTurn = (id: string) => {
+    setShelfOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const ask = (message: string) => {
     setShelfOpen(false);
     void assistant.ask(message);
@@ -72,6 +77,8 @@ export function Assistant() {
             sources={assistant.sources}
             readyCount={assistant.readySources.length}
             quizLoading={assistant.quizLoading}
+            turns={assistant.turns}
+            onJumpToTurn={jumpToTurn}
             onQuiz={() => void assistant.startQuiz()}
           />
         </aside>
