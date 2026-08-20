@@ -1,0 +1,18 @@
+line-length = 110
+target-version = "py314"
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # import sorting
+    "B",    # bugbear
+    "UP",   # pyupgrade
+    "SIM",  # simplify
+    "ANN",  # annotations
+    "RUF",
+]
+ignore = [
+    "ANN401",  # Any is occasionally the honest type for untyped third-party objects
+    "B008",    # FastAPI's Depends/File defaults are the documented pattern
+]

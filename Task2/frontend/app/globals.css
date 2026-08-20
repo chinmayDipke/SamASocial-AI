@@ -1,0 +1,327 @@
+@import "tailwindcss";
+
+/*
+  Design direction: a studio desk.
+
+  Two surfaces and no more -- a warm linen desk, and the paper sheet the plan is
+  written on. Depth is a step in surface plus a hairline, never a shadow, so a
+  module can sit on a sheet without becoming a box inside a box. One ink: a deep
+  ledger green that carries every interactive thing (links, primary buttons,
+  focus, the caret, the margin rule on the mentor's own words) and nothing
+  decorative. Difficulty is the one place we grade a colour, and it is graded by
+  depth in a single slate hue with a filled-bar count beside it, so the level
+  survives being printed in black and white.
+*/
+
+@theme {
+  /* Surfaces: the desk, and the paper on it. Only two steps exist. */
+  --color-desk: #e8e0d1;
+  --color-desk-shade: #dfd6c4; /* the chat rail -- desk, one step down */
+  --color-paper: #fbf8f2; /* the plan sheet, cards, popovers */
+  --color-paper-warm: #f5f0e6; /* hover wash, inset code, skeleton ground */
+
+  /* Hairlines. `rule` divides content; `rule-firm` bounds anything clickable. */
+  --color-rule: #d3c9b4; /* 1.55:1 on paper -- decorative division only */
+  --color-rule-strong: #c2b59c; /* section breaks, column divider */
+  --color-rule-firm: #948871; /* 3.29:1 on paper -- control borders, WCAG 1.4.11 */
+
+  /* Text, warm-neutral so it sits on the paper rather than on top of it. */
+  --color-ink: #23211c; /* 15.17:1 on paper, 12.26:1 on desk */
+  --color-ink-soft: #4e4a42; /* 8.32:1 on paper -- body prose, assistant voice */
+  --color-ink-quiet: #635d52; /* 6.16:1 on paper, 4.52:1 on desk-shade -- metadata */
+  --color-ink-faint: #8a8374; /* 3.55:1 -- placeholder and disabled ONLY, never body */
+
+  /* The one ink. Links, primary fill, focus, caret, the mentor's margin rule. */
+  --color-accent: #0f4a3c; /* 9.59:1 on paper, 7.75:1 on desk */
+  --color-accent-deep: #0a3830; /* hover / pressed */
+  --color-accent-tint: #e6eeea; /* selected row, commit flash */
+
+  /* Difficulty: one hue, three depths, always paired with a filled-bar count. */
+  --color-level-1: #4e6578; /* beginner      -- 5.16:1 on level-tint */
+  --color-level-2: #3a5670; /* intermediate  -- 6.50:1 on level-tint */
+  --color-level-3: #203648; /* advanced      -- 10.61:1 on level-tint */
+  --color-level-tint: #e9edf1;
+
+  /* Resource link verification. Glyph + word; never a filled pill. */
+  --color-verified: #2e6a4c; /* 6.04:1 on paper */
+  --color-unreachable: #9a3b22; /* 6.55:1 on paper */
+  --color-unchecked: #746d5e; /* 4.84:1 on paper -- paper only, fails on desk */
+
+  /* System */
+  --color-danger: #a32e1f; /* 6.68:1 on paper, 6.07:1 on danger-tint */
+  --color-danger-tint: #fbeae5;
+  --color-danger-rule: #e8c9be;
+  --color-caution: #8a5a14; /* 5.58:1 on paper -- unsaved / stale, not errors */
+  --color-caution-tint: #faf0dc;
+
+  /*
+    The one shadcn semantic token this app actually reads: the Select's popover
+    surface. Everything else here is styled from the palette above directly,
+    which is why the two borrowed primitives do not read as pasted on. Radii are
+    written at the call site -- there are four of them and they are all 3-5px.
+  */
+  --color-popover: var(--color-paper);
+
+  --shadow-pop: 0 10px 24px -18px rgb(35 33 28 / 0.38), 0 1px 0 rgb(35 33 28 / 0.04);
+
+  --font-plan: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  --font-ui: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-meta: var(--font-dm-mono), ui-monospace, "SFMono-Regular", monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-desk);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  The type scale, one class per job. None of these set a colour: the same size
+  carries a different weight of voice depending on where it sits, so colour
+  stays a utility at the call site.
+
+  Fraunces' quirk axes are switched off here rather than per element, so module
+  titles read engraved instead of playful and nobody has to remember the
+  incantation.
+*/
+.plan-title {
+  font-family: var(--font-plan);
+  font-variation-settings:
+    "SOFT" 0,
+    "WONK" 0,
+    "opsz" 32;
+}
+
+.course-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.module-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+  line-height: 1.25;
+}
+
+.assessment-title {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+}
+
+.lesson-title {
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.body {
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.body-lg {
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.control {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  line-height: 1.2;
+}
+
+.caption {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+/* Machine facts. Uppercase lives here and nowhere else. */
+.label {
+  font-family: var(--font-meta);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.numeral {
+  font-family: var(--font-meta);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.datum {
+  font-family: var(--font-meta);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.code {
+  font-family: var(--font-meta);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* The one prose italic in the app: a value the server has not confirmed yet. */
+.uncommitted {
+  font-style: italic;
+}
+
+.message-body p + p {
+  margin-top: 0.7em;
+}
+
+/* Depth 3 gets a different marker, not more furniture. */
+.resource-row::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--color-rule-firm);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-rule-strong);
+  border-radius: 4px;
+}
+
+/* 1. Streaming -- the caret is the only motion while tokens arrive. */
+@keyframes caret-blink {
+  0%,
+  48% {
+    opacity: 1;
+  }
+  52%,
+  100% {
+    opacity: 0.12;
+  }
+}
+
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  vertical-align: -0.12em;
+  margin-left: 2px;
+  background: var(--color-accent);
+  animation: caret-blink 1.05s steps(1, end) infinite;
+}
+
+/* 2. A new line lands on the sheet: 4px, once, staggered by row. */
+@keyframes line-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.line-in {
+  animation: line-in 180ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* 3. An edit commits -- ink drying, then gone. */
+@keyframes commit-flash {
+  from {
+    background-color: var(--color-accent-tint);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.commit-flash {
+  animation: commit-flash 520ms ease-out both;
+}
+
+/* Skeleton: a rule being drawn, not a block pulsing. */
+@keyframes rule-draw {
+  0% {
+    transform: scaleX(0.04);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+.rule-draw {
+  transform-origin: left;
+  animation: rule-draw 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite alternate both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .caret {
+    animation: none;
+    opacity: 1;
+  }
+
+  .rule-draw {
+    animation: none;
+    transform: none;
+    opacity: 0.55;
+  }
+
+  /* The commit signal still has to exist, so it becomes static instead of timed. */
+  .commit-flash {
+    animation: none;
+    outline: 1px solid var(--color-accent-tint);
+  }
+}
