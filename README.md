@@ -29,6 +29,6 @@ Task2/     AI Course Planning Assistant
 
 ## Documentation
 
-- [`Task1/README.md`](./Task1/README.md) — setup, env vars, architecture decisions
-- [`Task1/docs/RUNBOOK.md`](./Task1/docs/RUNBOOK.md) — step-by-step run guide, demo script, troubleshooting
-- [`Task1/docs/INTERVIEW.md`](./Task1/docs/INTERVIEW.md) — plain-English walkthrough of how and why it works
+[`Task1/README.md`](./Task1/README.md) is the complete guide: prerequisites, step-by-step
+setup for both processes, every environment variable, what to click first, a troubleshooting
+table, a headless end-to-end check, and the architecture decisions with their trade-offs.
