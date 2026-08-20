@@ -143,7 +143,9 @@ def test_a_generated_plan_is_published_then_republished_with_link_status(
     session = Session(id="s" * 32)
     set_read(stub, TurnRead(intake=COMPLETE, action="generate", target=None, intake_changed=False))
 
-    async def build_plan(intake: Intake, transcript: str) -> CoursePlan:
+    async def build_plan(
+        intake: Intake, transcript: str, previous: CoursePlan | None = None
+    ) -> CoursePlan:
         return a_plan()
 
     stub.setattr(turn_module, "build_plan", build_plan)
@@ -208,7 +210,9 @@ def test_a_plan_with_no_resources_is_published_once(stub: pytest.MonkeyPatch) ->
     session = Session(id="s" * 32)
     set_read(stub, TurnRead(intake=COMPLETE, action="generate", target=None, intake_changed=False))
 
-    async def build_plan(intake: Intake, transcript: str) -> CoursePlan:
+    async def build_plan(
+        intake: Intake, transcript: str, previous: CoursePlan | None = None
+    ) -> CoursePlan:
         return a_plan(with_resource=False)
 
     stub.setattr(turn_module, "build_plan", build_plan)
@@ -266,3 +270,71 @@ def test_sse_frames_are_shaped_the_way_the_browser_parses_them() -> None:
     head, body = frame.rstrip("\n").split("\n")
     assert head == "event: status"
     assert body.startswith("data: ")
+
+
+def test_a_finished_plan_is_never_regenerated_just_because_intake_is_complete(
+    stub: pytest.MonkeyPatch,
+) -> None:
+    """The mentor's plan is not collateral damage for a misrouted turn.
+
+    `_resolve_action` promotes `ask` to `generate` once there is nothing left to ask
+    about. That is right on the first pass and catastrophic on the tenth: the read
+    step only has to misjudge one conversational message for the whole course -- and
+    every hand edit in it -- to be rebuilt from scratch. `generate` has no equivalent
+    of the refinement guard, so the block has to happen here.
+    """
+    session = Session(id="s" * 32)
+    session.intake = COMPLETE
+    session.plan = a_plan()
+    before = session.plan
+
+    set_read(stub, TurnRead(intake=COMPLETE, action="ask", target=None, intake_changed=False))
+    events = drive(session, "so what do you think of all this?")
+
+    assert session.plan is before, "the existing plan was replaced"
+    assert not [e for e in events if e[0] == "plan"], "an answer must not publish a plan"
+
+
+def test_with_no_plan_yet_a_complete_intake_still_drafts_one(stub: pytest.MonkeyPatch) -> None:
+    """The guard above must not break the first draft, which is the normal path."""
+    session = Session(id="s" * 32)
+    session.intake = COMPLETE
+
+    async def build_plan(
+        intake: Intake, transcript: str, previous: CoursePlan | None = None
+    ) -> CoursePlan:
+        return a_plan(with_resource=False)
+
+    stub.setattr(turn_module, "build_plan", build_plan)
+    set_read(stub, TurnRead(intake=COMPLETE, action="ask", target=None, intake_changed=False))
+    events = drive(session, "that is everything")
+
+    assert session.plan is not None
+    assert [e for e in events if e[0] == "plan"]
+
+
+def test_an_explicit_restart_carries_the_version_forward(stub: pytest.MonkeyPatch) -> None:
+    """Starting over is allowed; silently resetting the version number is not.
+
+    The browser is still holding the old version, so a count that restarts at 1 would
+    let an edit already queued there pass the PUT precondition and land on the plan
+    that just replaced it.
+    """
+    session = Session(id="s" * 32)
+    session.intake = COMPLETE
+    session.plan = a_plan().model_copy(update={"version": 7})
+
+    async def build_plan(
+        intake: Intake, transcript: str, previous: CoursePlan | None = None
+    ) -> CoursePlan:
+        # Mirrors the real signature: the version is derived from what came before.
+        return a_plan(with_resource=False).model_copy(
+            update={"version": previous.version + 1 if previous else 1}
+        )
+
+    stub.setattr(turn_module, "build_plan", build_plan)
+    set_read(stub, TurnRead(intake=COMPLETE, action="generate", target=None, intake_changed=False))
+    drive(session, "scrap that, plan me a different course instead")
+
+    assert session.plan is not None
+    assert session.plan.version == 8, "an explicit regeneration must not reset the version"
