@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the example, which a fresh clone needs in order to be configured.
+!.env.local.example
 
 # vercel
 .vercel
