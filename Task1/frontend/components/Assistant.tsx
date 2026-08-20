@@ -7,6 +7,7 @@ import { Conversation } from "@/components/Conversation";
 import { QuizPanel } from "@/components/QuizPanel";
 import { Shelf } from "@/components/Shelf";
 import { useAssistant } from "@/hooks/useAssistant";
+import { describeWhen } from "@/lib/history";
 
 export function Assistant() {
   const assistant = useAssistant();
@@ -21,13 +22,21 @@ export function Assistant() {
       ? "Reading your source…"
       : "Paste a YouTube or article link, or attach a PDF";
 
+  const viewing = assistant.viewingChat;
+
   const jumpToTurn = (id: string) => {
     setShelfOpen(false);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    assistant.closeChat();
+    // If a saved chat was on screen, the live turns are rendered on the next
+    // frame -- scrolling before that would look for an element that isn't there.
+    requestAnimationFrame(() =>
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
   };
 
   const ask = (message: string) => {
     setShelfOpen(false);
+    assistant.closeChat();
     void assistant.ask(message);
   };
 
@@ -78,7 +87,18 @@ export function Assistant() {
             readyCount={assistant.readySources.length}
             quizLoading={assistant.quizLoading}
             turns={assistant.turns}
+            chats={assistant.chats}
+            currentChatId={assistant.currentChatId}
+            viewingChatId={viewing?.id ?? null}
             onJumpToTurn={jumpToTurn}
+            onOpenChat={(id) => {
+              setShelfOpen(false);
+              assistant.openChat(id);
+            }}
+            onNewChat={() => {
+              setShelfOpen(false);
+              void assistant.newChat();
+            }}
             onQuiz={() => void assistant.startQuiz()}
           />
         </aside>
@@ -86,26 +106,47 @@ export function Assistant() {
         <main className="flex min-h-0 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto">
             <Conversation
-              turns={assistant.turns}
+              turns={viewing ? viewing.turns : assistant.turns}
               sourceTitles={assistant.readySources.map((source) => source.title)}
               indexing={indexing}
               onSuggestion={ask}
             />
           </div>
 
-          <Composer
-            disabled={assistant.starting || !assistant.sessionId}
-            hasSource={hasReadySource}
-            streaming={assistant.streaming}
-            placeholder={placeholder}
-            model={assistant.model}
-            models={assistant.models}
-            onModelChange={assistant.chooseModel}
-            onSend={ask}
-            onAddUrl={(url) => void assistant.addSource({ url })}
-            onStop={assistant.stop}
-            onAttach={(file) => void assistant.addSource({ file })}
-          />
+          {viewing ? (
+            /*
+              A saved transcript, not a session. The index it was answered from
+              died with its server session, so asking here is not offered --
+              the way back to a live chat is explicit instead.
+            */
+            <div className="flex items-center justify-between gap-3 border-t border-line-soft bg-ink-900 px-4 py-3">
+              <p className="hint text-quieter">
+                Saved chat from {describeWhen(viewing.savedAt)}. Read-only — its sources were
+                released when that session ended.
+              </p>
+              <button
+                type="button"
+                onClick={assistant.closeChat}
+                className="control shrink-0 rounded-md border border-line px-3 py-1.5 text-quiet transition-colors hover:border-accent/60 hover:text-bright"
+              >
+                Back to this chat
+              </button>
+            </div>
+          ) : (
+            <Composer
+              disabled={assistant.starting || !assistant.sessionId}
+              hasSource={hasReadySource}
+              streaming={assistant.streaming}
+              placeholder={placeholder}
+              model={assistant.model}
+              models={assistant.models}
+              onModelChange={assistant.chooseModel}
+              onSend={ask}
+              onAddUrl={(url) => void assistant.addSource({ url })}
+              onStop={assistant.stop}
+              onAttach={(file) => void assistant.addSource({ file })}
+            />
+          )}
         </main>
       </div>
 
