@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api, streamChat } from "@/lib/api";
+import { type ChatRecord, loadChats, newChatId, saveChat } from "@/lib/history";
 import type { ModelOption, QuizQuestion, Source, Turn } from "@/lib/types";
 
 const SOURCE_POLL_MS = 1200;
@@ -26,6 +27,13 @@ export function useAssistant() {
   const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [models, setModels] = useState<ModelOption[]>([]);
+  // Saved transcripts from previous sessions, newest first.
+  const [chats, setChats] = useState<ChatRecord[]>([]);
+  // Which saved chat is being read, if any. Null means the live conversation.
+  const [viewingChatId, setViewingChatId] = useState<string | null>(null);
+  // The id this conversation is archived under. Held in state, not a ref, because
+  // the rail renders against it.
+  const [chatId, setChatId] = useState(() => newChatId());
   // The chosen model. Null means "whatever the backend defaults to".
   const [model, setModel] = useState<string | null>(null);
 
@@ -36,6 +44,9 @@ export function useAssistant() {
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+
+    // localStorage is only readable in the browser, so this waits for mount.
+    setChats(loadChats());
 
     api
       .createSession()
@@ -72,6 +83,22 @@ export function useAssistant() {
         /* createSession already reports an unreachable backend */
       });
   }, []);
+
+  /*
+    Archive the transcript once it settles.
+
+    Saving on every token would rewrite localStorage hundreds of times per
+    answer, so this waits for the stream to finish -- and a chat interrupted by
+    a closed tab still keeps every completed turn.
+
+    The written record is deliberately not fed back into `chats`: the rail lists
+    *earlier* chats and reads the live one straight from `turns`, so re-reading
+    storage here would only cause a render for a list that already agrees.
+  */
+  useEffect(() => {
+    if (streaming || turns.length === 0) return;
+    saveChat(turns, chatId);
+  }, [streaming, turns, chatId]);
 
   // While anything is indexing, poll so status, chunk counts and summaries land live.
   useEffect(() => {
@@ -213,6 +240,42 @@ export function useAssistant() {
     if (typeof window !== "undefined") window.localStorage.setItem(MODEL_STORAGE_KEY, next);
   }, []);
 
+  /**
+   * Start a fresh conversation.
+   *
+   * A new backend session means a new retrieval index, so the loaded sources go
+   * with it -- there is no way to keep them without keeping the old session.
+   */
+  const newChat = useCallback(async () => {
+    abortRef.current?.abort();
+    setViewingChatId(null);
+    setNotice(null);
+    setQuiz(null);
+    setTurns([]);
+    setSources([]);
+    setChatId(newChatId());
+    // The chat just left behind becomes an "earlier" one, so re-read the archive.
+    setChats(loadChats());
+
+    try {
+      const session = await api.createSession();
+      setSessionId(session.session_id);
+    } catch (error: unknown) {
+      setNotice({ kind: "error", text: describe(error) });
+    }
+  }, []);
+
+  const openChat = useCallback(
+    (id: string) => setViewingChatId(id === chatId ? null : id),
+    [chatId],
+  );
+
+  const closeChat = useCallback(() => setViewingChatId(null), []);
+
+  const viewingChat = viewingChatId
+    ? (chats.find((chat) => chat.id === viewingChatId) ?? null)
+    : null;
+
   const readySources = sources.filter((source) => source.status === "ready");
 
   return {
@@ -228,6 +291,12 @@ export function useAssistant() {
     model,
     models,
     chooseModel,
+    chats,
+    currentChatId: chatId,
+    viewingChat,
+    openChat,
+    closeChat,
+    newChat,
     addSource,
     ask,
     stop,
