@@ -388,6 +388,14 @@ specifically not like generated UI. So:
   single process. `SessionStore` is the only file that would change.
 - **Link verification proves reachability, not quality.** A `verified` badge means the URL responded,
   not that the video is good or still on-topic. The badge is worded to claim only what it checked.
+- **Only a resource's URL is verified — its `provider` and `note` are not.** Those two fields come
+  from the model and nothing checks them, so a link can be genuinely reachable while being described
+  slightly wrong. That is the honest boundary of what the badge asserts.
+- **The refinement guard detects "the mentor asked for a removal" with an English keyword regex.**
+  If a mentor asks to delete a module in wording the pattern does not know, the guard will refuse a
+  refinement that was actually legitimate. It fails in the safe direction — a rejected valid edit
+  costs one retry, whereas the opposite failure silently destroys work — but it is a keyword match,
+  not comprehension, and it does not work in another language.
 - **A verified link can rot later.** Verification happens when the plan is generated; nothing
   re-checks it afterwards.
 - **Image-only (scanned) syllabus PDFs cannot be read.** There is no OCR; the app says so plainly
