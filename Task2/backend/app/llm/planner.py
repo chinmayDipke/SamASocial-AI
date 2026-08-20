@@ -224,8 +224,16 @@ def check_refinement(previous: CoursePlan, candidate: CoursePlan, request: str) 
     return None
 
 
-async def build_plan(intake: Intake, transcript: str) -> CoursePlan:
-    """Draft a first course plan from the intake and the conversation behind it."""
+async def build_plan(
+    intake: Intake, transcript: str, previous: CoursePlan | None = None
+) -> CoursePlan:
+    """Draft a course plan from the intake and the conversation behind it.
+
+    `previous` is only passed when the mentor explicitly asked to start over. The
+    version still moves forward in that case: the browser is holding version N, and
+    restarting the count at 1 would let an edit already queued there pass the PUT
+    precondition and land on top of the plan that just replaced it.
+    """
     settings = get_settings()
     messages = [
         {"role": "system", "content": PLANNER_SYSTEM},
@@ -253,7 +261,10 @@ async def build_plan(intake: Intake, transcript: str) -> CoursePlan:
             "The plan came back empty. Tell me a little more about the course and I will "
             "try again."
         )
-    return _stamp(assign_ids(plan), version=1)
+    return _stamp(
+        assign_ids(plan, previous=previous),
+        version=previous.version + 1 if previous else 1,
+    )
 
 
 async def refine_plan(

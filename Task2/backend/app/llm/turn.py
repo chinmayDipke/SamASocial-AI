@@ -90,7 +90,12 @@ def _resolve_action(action: Action, session: Session, missing: list[str]) -> Act
     if action == "generate" and "subject" in missing:
         return "ask"  # No subject means no course to plan; ask instead of inventing one.
     if action == "ask" and not missing:
-        return "generate"  # Nothing left to ask about, so the honest move is to draft.
+        # Nothing left to ask about. With no plan yet, drafting one is the honest move.
+        # With a plan already on the page it is not: regenerating from scratch would
+        # throw away every edit the mentor made, and `generate` has no equivalent of
+        # the refinement guard to catch it. Talk about the plan instead and let them
+        # ask for the change they actually want.
+        return "generate" if session.plan is None else "answer"
     if action in ("refine", "answer") and session.plan is None:
         return "ask" if missing else "generate"
     return action
@@ -141,7 +146,7 @@ async def run_turn(session: Session, message: str) -> AsyncIterator[StreamEvent]
             yield event
         try:
             async with session.plan_lock:
-                plan = await build_plan(session.intake, transcript)
+                plan = await build_plan(session.intake, transcript, session.plan)
                 session.plan = plan
         except PlanUnavailable as exc:
             session.record_turn(message, "".join(reply))
