@@ -21,6 +21,7 @@ Setup instructions, environment variables and architecture decisions live in
 [`Task1/README.md`](./Task1/README.md).
 
 ## Task 2 — AI Course Planning Assistant for Mentors
+You can just follow the Task1 README.md for the task2 work on your laptop/desktop.
 
 A conversational assistant that interviews a mentor about the course they want to teach, then
 generates a structured course plan — modules, learning objectives, prerequisites, lessons with a
